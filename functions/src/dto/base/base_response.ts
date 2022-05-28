@@ -1,6 +1,8 @@
+import {RequestStatus} from "./request_status";
+
 export interface BaseResponse {
     message: string;
     code: string;
-    status: number;
+    status: RequestStatus;
     data?: any;
 }
