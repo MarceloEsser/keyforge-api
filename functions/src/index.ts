@@ -1,7 +1,6 @@
 import * as functions from "firebase-functions";
 import {logger} from "firebase-functions";
 import * as admin from "firebase-admin";
-import {firestore} from "firebase-admin";
 import {getFirestore} from "firebase-admin/firestore";
 import {getAuth, UserRecord} from "firebase-admin/auth";
 import * as express from "express";
@@ -9,32 +8,33 @@ import {Request, Response} from "express";
 import {BaseResponse} from "./dto/base/base_response";
 import {MatchUpDto} from "./dto/match_up_dto";
 import {RequestStatus} from "./dto/base/request_status";
-import WriteResult = firestore.WriteResult;
+import {firestore} from "firebase-admin";
+import DocumentData = firestore.DocumentData;
 
 admin.initializeApp();
 const db = getFirestore();
 // const express = require("express");
 const app = express();
 
-const authenticate = async (req: any, res: any, next: any) => {
-    const authorization = req.headers.authorization;
+// const authenticate = async (req: any, res: any, next: any) => {
+//     const authorization = req.headers.authorization;
+//
+//     if (!authorization || !authorization.startsWith("Bearer ")) {
+//         res.status(RequestStatus.unauthorized).send("Unauthorized");
+//         return;
+//     }
+//     const idToken = authorization.split("Bearer ")[1];
+//     try {
+//         req.user = await admin.auth().verifyIdToken(idToken);
+//         next();
+//         return;
+//     } catch (e) {
+//         res.status(RequestStatus.unauthorized).send("Unauthorized");
+//         return;
+//     }
+// };
 
-    if (!authorization || !authorization.startsWith("Bearer ")) {
-        res.status(RequestStatus.unauthorized).send("Unauthorized");
-        return;
-    }
-    const idToken = authorization.split("Bearer ")[1];
-    try {
-        req.user = await admin.auth().verifyIdToken(idToken);
-        next();
-        return;
-    } catch (e) {
-        res.status(RequestStatus.unauthorized).send("Unauthorized");
-        return;
-    }
-};
-
-app.use(authenticate);
+// app.use(authenticate);
 
 
 app.post("/logout", async (req: any, res: any) => {
@@ -46,7 +46,7 @@ app.post("/logout", async (req: any, res: any) => {
             code: "success_when_logout",
             status: RequestStatus.success
         }
-        res.status(RequestStatus.success).send(response);
+        res.sendStatus(RequestStatus.success).send(response);
 
     } catch (e: any) {
 
@@ -56,46 +56,51 @@ app.post("/logout", async (req: any, res: any) => {
             status: 500
         }
 
-        res.status(RequestStatus.internalError).send(response);
+        res.sendStatus(RequestStatus.internalError).send(response);
     }
 });
 
-app.put("/history", async (req: Request<{}, {}, MatchUpDto>, res: Response) => {
+app.post("/history", async (req: Request<{}, {}, MatchUpDto>, res: Response) => {
     const collection = db.collection("/history");
     const history = req.body;
 
     if (history.userId == null) {
-        res.status(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid user id"))
+        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid user id"))
         return;
     }
     if (history.date == null) {
-        res.status(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid date"))
+        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid date"))
         return;
     }
 
     if (history.matchUp === undefined) {
-        res.status(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid matchUp"))
+        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid matchUp"))
         return;
     }
 
     if (history.matchUp?.isBlueKeyForged
         || history.matchUp?.isRedKeyForged
         || history.matchUp?.isYellowKeyForged == undefined) {
-        res.status(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid key forge validation"))
+        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid key forge validation"))
         return;
     }
 
-    collection.doc().create({
-        history,
-    }).then((result: WriteResult) => {
+    collection.add({
+        // id: history.id,
+        userId: history.userId,
+        date: history.date,
+        matchUp: history.matchUp,
+    }).then((result) => {
         const response: BaseResponse = {
-            message: result.writeTime.toMillis().toString(),
+            data: result.id,
+            message: result.id,
             code: "success_when_write_matchUp",
             status: RequestStatus.created
         }
-        res.status(RequestStatus.created).send(response);
+        res.send(response).sendStatus(RequestStatus.success);
+
     }).catch((reason: any) => {
-        res.status(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse(
+        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse(
             reason.toString()));
     });
 
@@ -109,26 +114,29 @@ function provideMatchUpInsertErrorResponse(message: string): BaseResponse {
     }
 }
 
-//
-// function handleMatchUpRequestBody(req: Request<{}, {}, MatchUp>): MatchUp {
-//     var matchUp: MatchUp;
-//     if(req.body != null)
-//     return {}
-// }
-
 app.get("/history/:userId", async (req: any, res: any) => {
     const userId = req.params.userId;
     const matchUpCollection = db.collection("/history");
     try {
         matchUpCollection.where("userId", "==", userId).get().then((result) => {
-            res.send(result.size);
-            logger.log(result.size);
+            let historyDtos: DocumentData[] = [];
+            result.docs.forEach((doc) => {
+                historyDtos.push(doc.data())
+            })
+            const response: BaseResponse = {
+                data: historyDtos,
+                message: "query finished",
+                code: "success_when_write_matchUp",
+                status: RequestStatus.created
+            }
+            res.send(response).sendStatus(RequestStatus.success);
         }).catch((error) => {
-            res.send(error)
+            functions.logger.info("error catch" + error, {structuredData: true});
+            res.send(error.toString()).sendStatus(RequestStatus.internalError)
         });
-    } catch (e) {
-        logger.log("trying to get the history " + e);
-        res.send(e);
+    } catch (e: any) {
+        logger.log("trying to get the history " + e.toString());
+        res.send(e.toString()).sendStatus(RequestStatus.internalError)
     }
 });
 
@@ -156,7 +164,7 @@ app.post("/createAccount", async (req: any, res: any) => {
         res.sendStatus(200);
     } catch (e) {
         functions.logger.info(e, {structuredData: true});
-        res.send(e);
+        res.sendStatus(500).send(e);
     }
 });
 
