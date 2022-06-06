@@ -8,8 +8,6 @@ import {Request, Response} from "express";
 import {BaseResponse} from "./dto/base/base_response";
 import {MatchUpDto} from "./dto/match_up_dto";
 import {RequestStatus} from "./dto/base/request_status";
-import {firestore} from "firebase-admin";
-import DocumentData = firestore.DocumentData;
 
 admin.initializeApp();
 const db = getFirestore();
@@ -45,7 +43,7 @@ app.post("/logout", async (req: any, res: any) => {
             message: "success_when_logout",
             code: "success_when_logout",
             status: RequestStatus.success
-        }
+        };
         res.sendStatus(RequestStatus.success).send(response);
 
     } catch (e: any) {
@@ -54,7 +52,7 @@ app.post("/logout", async (req: any, res: any) => {
             message: e.toString(),
             code: "error_when_logout",
             status: 500
-        }
+        };
 
         res.sendStatus(RequestStatus.internalError).send(response);
     }
@@ -65,28 +63,27 @@ app.post("/history", async (req: Request<{}, {}, MatchUpDto>, res: Response) => 
     const history = req.body;
 
     if (history.userId == null) {
-        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid user id"))
+        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid user id"));
         return;
     }
     if (history.date == null) {
-        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid date"))
+        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid date"));
         return;
     }
 
     if (history.matchUp === undefined) {
-        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid matchUp"))
+        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid matchUp"));
         return;
     }
 
     if (history.matchUp?.isBlueKeyForged
         || history.matchUp?.isRedKeyForged
         || history.matchUp?.isYellowKeyForged == undefined) {
-        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid key forge validation"))
+        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid key forge validation"));
         return;
     }
 
     collection.add({
-        // id: history.id,
         userId: history.userId,
         date: history.date,
         matchUp: history.matchUp,
@@ -96,7 +93,7 @@ app.post("/history", async (req: Request<{}, {}, MatchUpDto>, res: Response) => 
             message: result.id,
             code: "success_when_write_matchUp",
             status: RequestStatus.created
-        }
+        };
         res.send(response).sendStatus(RequestStatus.success);
 
     }).catch((reason: any) => {
@@ -111,7 +108,7 @@ function provideMatchUpInsertErrorResponse(message: string): BaseResponse {
         message: message,
         code: "error_when_try_to_write_matchUp",
         status: RequestStatus.internalError
-    }
+    };
 }
 
 app.get("/history/:userId", async (req: any, res: any) => {
@@ -119,24 +116,29 @@ app.get("/history/:userId", async (req: any, res: any) => {
     const matchUpCollection = db.collection("/history");
     try {
         matchUpCollection.where("userId", "==", userId).get().then((result) => {
-            let historyDtos: DocumentData[] = [];
+            let historyDtos: MatchUpDto[] = [];
             result.docs.forEach((doc) => {
-                historyDtos.push(doc.data())
+                const matchUpDto: MatchUpDto = {
+                    id: doc.id,
+                    date: doc.data().date,
+                    matchUp: doc.data().matchUp,
+                }
+                historyDtos.push(matchUpDto);
             })
             const response: BaseResponse = {
                 data: historyDtos,
                 message: "query finished",
                 code: "success_when_write_matchUp",
                 status: RequestStatus.created
-            }
+            };
             res.send(response).sendStatus(RequestStatus.success);
         }).catch((error) => {
             functions.logger.info("error catch" + error, {structuredData: true});
-            res.send(error.toString()).sendStatus(RequestStatus.internalError)
+            res.send(error.toString()).sendStatus(RequestStatus.internalError);
         });
     } catch (e: any) {
         logger.log("trying to get the history " + e.toString());
-        res.send(e.toString()).sendStatus(RequestStatus.internalError)
+        res.send(e.toString()).sendStatus(RequestStatus.internalError);
     }
 });
 

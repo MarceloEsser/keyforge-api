@@ -1,8 +1,9 @@
 import {MatchUp} from "./match_up";
 
 export interface MatchUpDto {
-    id: number;
+    id: string;
     date?: number;
     userId?: string;
+    challengerId?: string;
     matchUp?: MatchUp;
 }
