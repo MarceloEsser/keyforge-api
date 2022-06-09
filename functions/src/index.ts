@@ -1,5 +1,4 @@
 import * as functions from "firebase-functions";
-import {logger} from "firebase-functions";
 import * as admin from "firebase-admin";
 import {getFirestore} from "firebase-admin/firestore";
 import {getAuth, UserRecord} from "firebase-admin/auth";
@@ -16,7 +15,8 @@ const app = express();
 const authenticate = async (req: any, res: any, next: any) => {
     const authorization = req.headers.authorization;
 
-    if (!authorization || !authorization.startsWith("Bearer ")) {
+    if (!authorization ||
+        !authorization.startsWith("Bearer ")) {
         res.status(RequestStatus.unauthorized).send("Unauthorized");
         return;
     }
@@ -33,7 +33,6 @@ const authenticate = async (req: any, res: any, next: any) => {
 
 app.use(authenticate);
 
-
 app.post("/logout", async (req: any, res: any) => {
     const body = req.body;
     try {
@@ -41,72 +40,77 @@ app.post("/logout", async (req: any, res: any) => {
         const response: BaseResponse = {
             message: "success_when_logout",
             code: "success_when_logout",
-            status: RequestStatus.success
+            status: RequestStatus.success,
         };
+
         res.sendStatus(RequestStatus.success).send(response);
-
     } catch (e: any) {
-
         const response: BaseResponse = {
             message: e.toString(),
             code: "error_when_logout",
-            status: 500
+            status: 500,
         };
 
         res.sendStatus(RequestStatus.internalError).send(response);
     }
 });
 
-app.post("/history", async (req: Request<{}, {}, MatchUpDto>, res: Response) => {
-    const collection = db.collection("/history");
-    const history = req.body;
+app.post("/history",
+    async (req: Request<any, any, MatchUpDto>,
+           res: Response) => {
+        const collection = db.collection("/history");
+        const history = req.body;
 
-    if (history.userId == null) {
-        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid user id"));
-        return;
-    }
-    if (history.date == null) {
-        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid date"));
-        return;
-    }
+        if (history.userId == null) {
+            res.sendStatus(RequestStatus.internalError)
+                .send(provideMatchUpInsertErrorResponse("invalid user id"));
+            return;
+        }
+        if (history.date == null) {
+            res.sendStatus(RequestStatus.internalError)
+                .send(provideMatchUpInsertErrorResponse("invalid date"));
+            return;
+        }
 
-    if (history.matchUp === undefined) {
-        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid matchUp"));
-        return;
-    }
+        if (history.matchUp === undefined) {
+            res.sendStatus(RequestStatus.internalError)
+                .send(provideMatchUpInsertErrorResponse("invalid matchUp"));
+            return;
+        }
 
-    if (history.matchUp?.isBlueKeyForged
-        || history.matchUp?.isRedKeyForged
-        || history.matchUp?.isYellowKeyForged == undefined) {
-        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse("invalid key forge validation"));
-        return;
-    }
+        if (history.matchUp?.isBlueKeyForged ||
+            history.matchUp?.isRedKeyForged ||
+            history.matchUp?.isYellowKeyForged == undefined) {
+            res.sendStatus(RequestStatus.internalError)
+                .send(provideMatchUpInsertErrorResponse("invalid key forge validation"));
+            return;
+        }
 
-    collection.add({
-        userId: history.userId,
-        date: history.date,
-        matchUp: history.matchUp,
-    }).then((result) => {
-        const response: BaseResponse = {
-            data: result.id,
-            message: result.id,
-            code: "success_when_write_matchUp",
-            status: RequestStatus.created
-        };
-        res.send(response).sendStatus(RequestStatus.success);
+        collection.add({
+            userId: history.userId,
+            date: history.date,
+            matchUp: history.matchUp,
+        }).then((result) => {
+            const response: BaseResponse = {
+                data: result.id,
+                message: result.id,
+                code: "success_when_write_matchUp",
+                status: RequestStatus.created,
+            };
+            res.send(response).sendStatus(RequestStatus.success);
 
-    }).catch((reason: any) => {
-        res.sendStatus(RequestStatus.internalError).send(provideMatchUpInsertErrorResponse(
-            reason.toString()));
+        }).catch((reason: any) => {
+            res.sendStatus(RequestStatus.internalError)
+                .send(provideMatchUpInsertErrorResponse(reason.toString()));
+        });
+
     });
-
-});
 
 function provideMatchUpInsertErrorResponse(message: string): BaseResponse {
     return {
         message: message,
         code: "error_when_try_to_write_matchUp",
-        status: RequestStatus.internalError
+        status: RequestStatus.internalError,
     };
 }
 
@@ -114,30 +118,32 @@ app.get("/history/:userId", async (req: any, res: any) => {
     const userId = req.params.userId;
     const matchUpCollection = db.collection("/history");
     try {
-        matchUpCollection.where("userId", "==", userId).get().then((result) => {
-            let historyDtos: MatchUpDto[] = [];
+        matchUpCollection.where("userId", "==", userId)
+            .get()
+            .then((result) => {
+            const historyDtos: MatchUpDto[] = [];
             result.docs.forEach((doc) => {
                 const matchUpDto: MatchUpDto = {
                     id: doc.id,
                     date: doc.data().date,
                     matchUp: doc.data().matchUp,
-                }
+                };
                 historyDtos.push(matchUpDto);
-            })
+            });
             const response: BaseResponse = {
                 data: historyDtos,
                 message: "query finished",
                 code: "success_when_write_matchUp",
-                status: RequestStatus.created
+                status: RequestStatus.created,
             };
             res.send(response).sendStatus(RequestStatus.success);
         }).catch((error) => {
-            functions.logger.info("error catch" + error, {structuredData: true});
-            res.send(error.toString()).sendStatus(RequestStatus.internalError);
+            res.send(error.toString())
+                .sendStatus(RequestStatus.internalError);
         });
     } catch (e: any) {
-        logger.log("trying to get the history " + e.toString());
-        res.send(e.toString()).sendStatus(RequestStatus.internalError);
+        res.send(e.toString())
+            .sendStatus(RequestStatus.internalError);
     }
 });
 

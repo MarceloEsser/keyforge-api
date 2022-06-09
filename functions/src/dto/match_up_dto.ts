@@ -6,4 +6,5 @@ export interface MatchUpDto {
     userId?: string;
     challengerId?: string;
     matchUp?: MatchUp;
+
 }

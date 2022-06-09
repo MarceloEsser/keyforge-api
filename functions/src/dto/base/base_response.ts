@@ -5,4 +5,5 @@ export interface BaseResponse {
     code: string;
     status: RequestStatus;
     data?: any;
+
 }

@@ -4,4 +4,5 @@ export interface MatchUp {
     isYellowKeyForged?: boolean;
     isBlueKeyForged?: boolean;
     isWinner?: boolean;
+
 }
