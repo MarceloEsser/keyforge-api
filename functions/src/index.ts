@@ -11,28 +11,27 @@ import {RequestStatus} from "./dto/base/request_status";
 
 admin.initializeApp();
 const db = getFirestore();
-// const express = require("express");
 const app = express();
 
-// const authenticate = async (req: any, res: any, next: any) => {
-//     const authorization = req.headers.authorization;
-//
-//     if (!authorization || !authorization.startsWith("Bearer ")) {
-//         res.status(RequestStatus.unauthorized).send("Unauthorized");
-//         return;
-//     }
-//     const idToken = authorization.split("Bearer ")[1];
-//     try {
-//         req.user = await admin.auth().verifyIdToken(idToken);
-//         next();
-//         return;
-//     } catch (e) {
-//         res.status(RequestStatus.unauthorized).send("Unauthorized");
-//         return;
-//     }
-// };
+const authenticate = async (req: any, res: any, next: any) => {
+    const authorization = req.headers.authorization;
 
-// app.use(authenticate);
+    if (!authorization || !authorization.startsWith("Bearer ")) {
+        res.status(RequestStatus.unauthorized).send("Unauthorized");
+        return;
+    }
+    const idToken = authorization.split("Bearer ")[1];
+    try {
+        req.user = await admin.auth().verifyIdToken(idToken);
+        next();
+        return;
+    } catch (e) {
+        res.status(RequestStatus.unauthorized).send("Unauthorized");
+        return;
+    }
+};
+
+app.use(authenticate);
 
 
 app.post("/logout", async (req: any, res: any) => {
